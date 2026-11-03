@@ -1,5 +1,13 @@
 # AUV simulation (ROS 2 Humble + Gazebo Fortress)
 
+![AUV in the Gazebo ocean world](docs/gazebo_ocean_world.png)
+
+*Torpedo AUV in the ocean world. On the seabed: the red/green gate, rocks, the dock marker and the pipeline.*
+
+![Keyboard teleop with RViz odometry trail and front camera](docs/teleop_rviz_camera.png)
+
+*Driving with keyboard teleop. RViz shows the odometry trail and the live front-camera feed.*
+
 Tested on Ubuntu 22.04, ROS 2 Humble, Ignition Gazebo Fortress 6.16, ros_gz 0.244.
 
 ## Build
