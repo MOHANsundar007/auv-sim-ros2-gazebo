@@ -1,4 +1,4 @@
-# auv_ws — AUV simulation (ROS 2 Humble + Gazebo Fortress)
+# AUV simulation (ROS 2 Humble + Gazebo Fortress)
 
 Tested on Ubuntu 22.04, ROS 2 Humble, Ignition Gazebo Fortress 6.16, ros_gz 0.244.
 
