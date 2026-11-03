@@ -1,0 +1,60 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Cell Size: 5
+      Plane Cell Count: 20
+      Reference Frame: odom
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+      Marker Scale: 1
+    - Class: rviz_default_plugins/Odometry
+      Name: Odometry
+      Enabled: true
+      Topic:
+        Value: /auv/odom
+        Depth: 5
+        Reliability Policy: Reliable
+      Keep: 300
+      Position Tolerance: 0.3
+      Angle Tolerance: 0.2
+      Shape:
+        Value: Arrow
+        Color: 255; 140; 0
+        Shaft Length: 0.6
+        Shaft Radius: 0.04
+        Head Length: 0.2
+        Head Radius: 0.08
+      Covariance:
+        Value: false
+    - Class: rviz_default_plugins/Image
+      Name: Front camera
+      Enabled: true
+      Topic:
+        Value: /auv/camera/image
+        Reliability Policy: Best Effort
+  Enabled: true
+  Global Options:
+    Fixed Frame: odom
+    Background Color: 20; 40; 55
+    Frame Rate: 30
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 25
+      Focal Point: {X: 5, Y: 0, Z: -3}
+      Pitch: 0.5
+      Yaw: 3.6
+      Target Frame: base_link
+Window Geometry:
+  Width: 1200
+  Height: 800

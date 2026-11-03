@@ -1,0 +1,277 @@
+<?xml version="1.0"?>
+<!--
+  Torpedo-shaped AUV for Gazebo Fortress (ign-gazebo 6).
+
+  Frame convention: +x = nose (forward), +y = port (left), +z = up.
+
+  Buoyancy is computed by the world's Buoyancy system from the hull
+  collision volume: 1.6 x 0.1772 x 0.1772 m box -> 0.05024 m^3 -> 50.24 kg
+  of displaced water. Total mass is 50.10 kg, so the vehicle is ~0.14 kg
+  positively buoyant (it slowly rises when idle, like a real AUV).
+  The CoM sits 3 cm below the centre of buoyancy (and is trimmed fore/aft
+  to cancel the tail mass) for roll/pitch stability.
+
+  Gazebo topics (model name "auv"):
+    /model/auv/joint/propeller_joint/cmd_thrust   ignition.msgs.Double  [N]
+    /model/auv/joint/rudder_joint/0/cmd_pos       ignition.msgs.Double  [rad]
+    /model/auv/joint/elevator_joint/0/cmd_pos     ignition.msgs.Double  [rad]
+    /model/auv/odometry                           ignition.msgs.Odometry
+    /model/auv/tf                                 ignition.msgs.Pose_V
+    /auv/imu                                      ignition.msgs.IMU
+    /auv/camera/image, /auv/camera/camera_info
+-->
+<sdf version="1.8">
+  <model name="auv">
+
+    <!-- ============================ HULL ============================ -->
+    <link name="base_link">
+      <inertial>
+        <pose>0.0061 0 -0.03 0 0 0</pose>
+        <mass>49.70</mass>
+        <inertia>
+          <ixx>0.25</ixx><iyy>10.75</iyy><izz>10.75</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+
+      <!-- Only the hull has a collision: it defines the buoyant volume -->
+      <!-- Box with the same volume as the r=0.10 m, L=1.6 m cylinder hull.
+           (Fortress' graded buoyancy only supports box/sphere collisions.) -->
+      <collision name="hull_collision">
+        <geometry><box><size>1.6 0.1772 0.1772</size></box></geometry>
+      </collision>
+
+      <visual name="hull_visual">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry><cylinder><radius>0.10</radius><length>1.6</length></cylinder></geometry>
+        <material>
+          <ambient>0.95 0.55 0.05 1</ambient><diffuse>0.95 0.55 0.05 1</diffuse>
+          <specular>0.3 0.3 0.3 1</specular>
+        </material>
+      </visual>
+      <visual name="nose_visual">
+        <pose>0.8 0 0 0 0 0</pose>
+        <geometry><sphere><radius>0.10</radius></sphere></geometry>
+        <material><ambient>0.9 0.9 0.9 1</ambient><diffuse>0.9 0.9 0.9 1</diffuse></material>
+      </visual>
+      <visual name="tail_visual">
+        <pose>-0.8 0 0 0 1.5708 0</pose>
+        <geometry><cylinder><radius>0.06</radius><length>0.12</length></cylinder></geometry>
+        <material><ambient>0.2 0.2 0.2 1</ambient><diffuse>0.2 0.2 0.2 1</diffuse></material>
+      </visual>
+
+      <!-- IMU -->
+      <sensor name="imu" type="imu">
+        <always_on>1</always_on>
+        <update_rate>100</update_rate>
+        <topic>/auv/imu</topic>
+        <ignition_frame_id>base_link</ignition_frame_id>
+        <imu>
+          <angular_velocity>
+            <x><noise type="gaussian"><mean>0</mean><stddev>0.0009</stddev></noise></x>
+            <y><noise type="gaussian"><mean>0</mean><stddev>0.0009</stddev></noise></y>
+            <z><noise type="gaussian"><mean>0</mean><stddev>0.0009</stddev></noise></z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x><noise type="gaussian"><mean>0</mean><stddev>0.017</stddev></noise></x>
+            <y><noise type="gaussian"><mean>0</mean><stddev>0.017</stddev></noise></y>
+            <z><noise type="gaussian"><mean>0</mean><stddev>0.017</stddev></noise></z>
+          </linear_acceleration>
+        </imu>
+      </sensor>
+
+      <!-- Forward-looking camera in the nose -->
+      <sensor name="front_camera" type="camera">
+        <pose>0.88 0 0 0 0 0</pose>
+        <always_on>1</always_on>
+        <update_rate>15</update_rate>
+        <visualize>false</visualize>
+        <topic>/auv/camera/image</topic>
+        <ignition_frame_id>camera_link</ignition_frame_id>
+        <camera>
+          <horizontal_fov>1.2</horizontal_fov>
+          <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+          <clip><near>0.05</near><far>40</far></clip>
+        </camera>
+      </sensor>
+    </link>
+
+    <!-- ========================== PROPELLER ========================== -->
+    <link name="propeller">
+      <pose>-0.88 0 0 0 0 0</pose>
+      <inertial>
+        <mass>0.10</mass>
+        <inertia>
+          <ixx>0.0005</ixx><iyy>0.0003</iyy><izz>0.0003</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="blade_1">
+        <geometry><box><size>0.02 0.20 0.03</size></box></geometry>
+        <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.1 0.1 0.1 1</diffuse></material>
+      </visual>
+      <visual name="blade_2">
+        <geometry><box><size>0.02 0.03 0.20</size></box></geometry>
+        <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.1 0.1 0.1 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="propeller_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>propeller</child>
+      <axis>
+        <xyz>1 0 0</xyz>
+        <limit><lower>-1e12</lower><upper>1e12</upper><effort>-1</effort><velocity>-1</velocity></limit>
+      </axis>
+    </joint>
+
+    <!-- ===================== RUDDER (vertical fins) ===================== -->
+    <link name="rudder">
+      <pose>-0.72 0 0 0 0 0</pose>
+      <inertial>
+        <mass>0.15</mass>
+        <inertia>
+          <ixx>0.00162</ixx><iyy>0.0018</iyy><izz>0.00018</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="rudder_visual">
+        <geometry><box><size>0.12 0.01 0.36</size></box></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="rudder_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>rudder</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <!-- hard stop beyond the +/-0.35 rad command range: Fortress velocity-mode
+             joint control sticks if a fin is driven into its limit -->
+        <limit><lower>-0.5</lower><upper>0.5</upper><effort>1e6</effort></limit>
+        <dynamics><damping>0.05</damping></dynamics>
+      </axis>
+    </joint>
+
+    <!-- =================== ELEVATOR (horizontal fins) =================== -->
+    <link name="elevator">
+      <pose>-0.72 0 0 0 0 0</pose>
+      <inertial>
+        <mass>0.15</mass>
+        <inertia>
+          <ixx>0.00162</ixx><iyy>0.00018</iyy><izz>0.0018</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="elevator_visual">
+        <geometry><box><size>0.12 0.36 0.01</size></box></geometry>
+        <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material>
+      </visual>
+    </link>
+    <joint name="elevator_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>elevator</child>
+      <axis>
+        <xyz>0 1 0</xyz>
+        <!-- hard stop beyond the +/-0.35 rad command range: Fortress velocity-mode
+             joint control sticks if a fin is driven into its limit -->
+        <limit><lower>-0.5</lower><upper>0.5</upper><effort>1e6</effort></limit>
+        <dynamics><damping>0.05</damping></dynamics>
+      </axis>
+    </joint>
+
+    <!-- =========================== PLUGINS =========================== -->
+
+    <!-- Propeller: thrust [N] commanded on cmd_thrust; +thrust pushes along +x -->
+    <plugin filename="ignition-gazebo-thruster-system"
+            name="ignition::gazebo::systems::Thruster">
+      <namespace>auv</namespace>
+      <joint_name>propeller_joint</joint_name>
+      <thrust_coefficient>0.004422</thrust_coefficient>
+      <fluid_density>1000</fluid_density>
+      <propeller_diameter>0.2</propeller_diameter>
+      <max_thrust_cmd>60</max_thrust_cmd>
+      <min_thrust_cmd>-60</min_thrust_cmd>
+    </plugin>
+
+    <!-- Fin position controllers (velocity mode is stable with light fins) -->
+    <plugin filename="ignition-gazebo-joint-position-controller-system"
+            name="ignition::gazebo::systems::JointPositionController">
+      <joint_name>rudder_joint</joint_name>
+      <use_velocity_commands>true</use_velocity_commands>
+      <p_gain>8</p_gain>
+      <cmd_max>2</cmd_max>
+      <cmd_min>-2</cmd_min>
+    </plugin>
+    <plugin filename="ignition-gazebo-joint-position-controller-system"
+            name="ignition::gazebo::systems::JointPositionController">
+      <joint_name>elevator_joint</joint_name>
+      <use_velocity_commands>true</use_velocity_commands>
+      <p_gain>8</p_gain>
+      <cmd_max>2</cmd_max>
+      <cmd_min>-2</cmd_min>
+    </plugin>
+
+    <!-- Fin lift & drag (air_density is really the fluid density) -->
+    <plugin filename="ignition-gazebo-lift-drag-system"
+            name="ignition::gazebo::systems::LiftDrag">
+      <air_density>1000</air_density>
+      <cla>4.13</cla><cla_stall>-1.1</cla_stall>
+      <cda>0.2</cda><cda_stall>0.03</cda_stall>
+      <alpha_stall>0.17</alpha_stall><a0>0</a0>
+      <area>0.04</area>
+      <upward>0 1 0</upward>
+      <forward>1 0 0</forward>
+      <link_name>rudder</link_name>
+      <cp>0 0 0</cp>
+    </plugin>
+    <plugin filename="ignition-gazebo-lift-drag-system"
+            name="ignition::gazebo::systems::LiftDrag">
+      <air_density>1000</air_density>
+      <cla>4.13</cla><cla_stall>-1.1</cla_stall>
+      <cda>0.2</cda><cda_stall>0.03</cda_stall>
+      <alpha_stall>0.17</alpha_stall><a0>0</a0>
+      <area>0.04</area>
+      <upward>0 0 1</upward>
+      <forward>1 0 0</forward>
+      <link_name>elevator</link_name>
+      <cp>0 0 0</cp>
+    </plugin>
+
+    <!-- Fossen-style hydrodynamics: added mass + linear/quadratic damping -->
+    <plugin filename="ignition-gazebo-hydrodynamics-system"
+            name="ignition::gazebo::systems::Hydrodynamics">
+      <link_name>base_link</link_name>
+      <!-- Fortress' Coriolis term couples pitch into yaw; disable it -->
+      <disable_coriolis>true</disable_coriolis>
+      <xDotU>-2.5</xDotU>
+      <yDotV>-25.0</yDotV>
+      <zDotW>-25.0</zDotW>
+      <kDotP>0</kDotP>
+      <mDotQ>-5.0</mDotQ>
+      <nDotR>-5.0</nDotR>
+      <xUabsU>-5.0</xUabsU>   <xU>-1.0</xU>
+      <yVabsV>-180.0</yVabsV> <yV>-10.0</yV>
+      <zWabsW>-180.0</zWabsW> <zW>-10.0</zW>
+      <kPabsP>-0.2</kPabsP>   <kP>-0.5</kP>
+      <mQabsQ>-40.0</mQabsQ>  <mQ>-5.0</mQ>
+      <nRabsR>-40.0</nRabsR>  <nR>-5.0</nR>
+    </plugin>
+
+    <!-- Joint states (fins + propeller) -> /world/<world>/model/auv/joint_state -->
+    <plugin filename="ignition-gazebo-joint-state-publisher-system"
+            name="ignition::gazebo::systems::JointStatePublisher">
+      <topic>/model/auv/joint_state</topic>
+    </plugin>
+
+    <!-- Ground-truth odometry + TF (odom -> base_link) -->
+    <plugin filename="ignition-gazebo-odometry-publisher-system"
+            name="ignition::gazebo::systems::OdometryPublisher">
+      <dimensions>3</dimensions>
+      <odom_frame>odom</odom_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+      <odom_publish_frequency>50</odom_publish_frequency>
+      <odom_topic>/model/auv/odometry</odom_topic>
+      <tf_topic>/model/auv/tf</tf_topic>
+    </plugin>
+
+  </model>
+</sdf>
